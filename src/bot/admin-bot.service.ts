@@ -113,36 +113,79 @@ export class AdminBotService {
     // WELCOME MESSAGE
     // =========================
     this.bot.start(async (ctx) => {
-        if (!(await this.isAdmin(ctx))) return ctx.reply('❌ You are not authorized to use this bot.');
-        const from = ctx.from;
-      
-        // Upsert admin user automatically
-        const user = await this.usersService.upsertFromTelegram(from);
-        const username = user.username || "Admin";
-      
+      const from = ctx.from;
+      if (!from?.id) {
+        return ctx.reply('❌ Unable to identify user.');
+      }
+    
+      const telegramId = from.id.toString();
+    
+      // Always upsert the user first
+      let user = await this.usersService.upsertFromTelegram(from);
+    
+      // Check if any admin exists in the system
+      const adminExists = await this.usersService.adminExists();
+    
+      /**
+       * BOOTSTRAP LOGIC
+       * --------------------------------------------------
+       * If no admin exists yet, promote the first user
+       */
+      if (!adminExists) {
+        user.isAdmin = true;
+        user = await this.usersService.save(user);
+    
         await ctx.reply(
-            `
-🌟 *Welcome aboard, Commander ${username}!*  
-
-You've just logged into the *Fasqon Admin Control Deck* —  
-where buttons are shiny, menus behave (most of the time),  
-and users pretend they read instructions before opening tickets.
-
-🛠 Your mission?  
-Keep the ecosystem running smoothly,  
-slap bugs out of existence,  
-and restore peace whenever someone “accidentally” loses their wallet key.
-
-📚 Need your bearings?  
-Type */help* and I’ll hand you the sacred scroll of admin wisdom.
-
-🔐 *Authentication complete for:* \`${username}\`  
-System is warmed up. Engines humming.  
-Let’s make some magic. ✨
-            `, 
-            { parse_mode: "Markdown" }
+          `
+    🚀 *System Bootstrap Complete*
+    
+    You are now the *first administrator* of the Fasqon system.
+    
+    🔐 This happens only once — when the database has no admins.
+    From now on, only approved admins can access this bot.
+    
+    Welcome, Commander. 👑
+          `,
+          { parse_mode: 'Markdown' },
         );
+    
+        return;
+      }
+    
+      /**
+       * NORMAL AUTH FLOW
+       * --------------------------------------------------
+       * Admins only beyond this point
+       */
+      if (!user.isAdmin) {
+        return ctx.reply('❌ You are not authorized to use this bot.');
+      }
+    
+      const username = user.username || 'Admin';
+    
+      await ctx.reply(
+        `
+    🌟 *Welcome aboard, Commander ${username}!*  
+    
+    You've just logged into the *Fasqon Admin Control Deck* —  
+    where buttons are shiny, menus behave (most of the time),  
+    and users pretend they read instructions before opening tickets.
+    
+    🛠 *Your mission:*  
+    Keep the ecosystem running smoothly,  
+    slap bugs out of existence,  
+    and restore peace whenever someone “accidentally” loses their wallet key.
+    
+    📚 Need guidance?  
+    Type */help* to view available admin commands.
+    
+    🔐 *Authenticated as:* \`${username}\`  
+    System online. Let’s work. ⚡
+        `,
+        { parse_mode: 'Markdown' },
+      );
     });
+    
       
       
 

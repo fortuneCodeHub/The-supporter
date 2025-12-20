@@ -58,4 +58,12 @@ export class UsersService {
         Object.assign(user, updateData); // merge new fields
         return this.userRepository.save(user); // persist
     }
+
+    async adminExists(): Promise<boolean> {
+        const count = await this.userRepository.count({
+          where: { isAdmin: true },
+        });
+        return count > 0;
+    }
+      
 }
